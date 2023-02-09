@@ -1,0 +1,7 @@
+{
+	"files.exclude": {
+		"C:/Dev/ParkourShooter/.vscode": true,
+		"C:/Dev/ParkourShooter/Content": true,
+		"C:/Dev/ParkourShooter/Intermediate": true
+	}
+}

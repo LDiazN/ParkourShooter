@@ -51,6 +51,69 @@ public:
 protected:
 	virtual void BeginPlay();
 
+	// -- < WALLRUN > --------------------------------------------------------------------
+
+protected:
+	enum class WallrunSide
+	{
+		Right, 
+		Side
+	};
+
+	enum WallrunEndReason
+	{
+		Fall, 
+		Jump
+	};
+
+	bool IsOnWall() const;
+
+	bool IsMovingForward() const;
+
+	void BeginWallrun();
+
+	void UpdateWallrun();
+
+	void EndWallrun();
+
+	void StartCameraTilt();
+
+	void UpdateCameraTilt();
+
+	void EndCameraTilt();
+
+	void FindWallrunDirectionAndSide(const FVector& SurfaceNormal, FVector& OutDirection, WallrunSide& Outside) const;
+
+	void ResetJumps(int NewJumps);
+
+	bool ConsumeJump();
+
+	bool CanRunInWall(FVector SurfaceNormal) const;
+
+	//void OnLanded();
+
+	void OnWallHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit);
+
+	virtual void Jump() override;
+
+	virtual void Landed(const FHitResult& Hit) override;
+
+	FVector FindLaunchVelocity() const;
+
+	bool AreRequiredKeysDown() const;
+
+	FVector2D GetHorizontalVelocity() const;
+
+	void SetHorizontalVelocity(FVector2D NewVelocity);
+	
+	void ClampHorizontalVelocity();
+
+	WallrunSide CurrentSide;
+	bool bIsWallrunning;
+	float ForwardAxis, RightAxis;
+	FVector WallrunDirection;
+
+	// -- < END WALLRUN > ----------------------------------------------------------------
 public:
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)

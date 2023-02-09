@@ -22,6 +22,11 @@ AParkourShooterCharacter::AParkourShooterCharacter()
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
 
+	// Wallrun Initialization
+	OnActorHit.AddDynamic(this, &AParkourShooterCharacter::OnWallHit);
+	
+
+
 	// set our turn rates for input
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
@@ -297,4 +302,64 @@ bool AParkourShooterCharacter::EnableTouchscreenMovement(class UInputComponent* 
 	}
 	
 	return false;
+}
+
+void AParkourShooterCharacter::BeginWallrun()
+{
+}
+
+void AParkourShooterCharacter::ResetJumps(int NewJumps)
+{
+	JumpCurrentCount = FMath::Clamp(NewJumps, 0, JumpMaxCount);
+}
+
+bool AParkourShooterCharacter::ConsumeJump()
+{
+	if (IsOnWall())
+		return true;
+	else if (JumpCurrentCount > 0)
+	{
+		//JumpCurrentCount--;
+		return true;
+	}
+
+	return false;
+}
+
+void AParkourShooterCharacter::Jump()
+{
+	Super::Jump();
+
+	// If couldn't jump, just end
+	if (!ConsumeJump())
+		return;
+
+	LaunchCharacter(FindLaunchVelocity(), false, true);
+}
+
+void AParkourShooterCharacter::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+	ResetJumps(JumpMaxCount);
+}
+
+FVector AParkourShooterCharacter::FindLaunchVelocity() const
+{
+
+	FVector LaunchDirection;
+	if (IsOnWall())
+	{
+		switch (CurrentSide)
+		{
+		case WallrunSide::Right:
+			LaunchDirection = FVector::CrossProduct(WallrunDirection, FVector::UpVector);
+			break;
+		case WallrunSide::Left:
+			LaunchDirection = FVector::CrossProduct(WallrunDirection, FVector::DownVector);
+			break;
+		default:
+			break;
+		}
+	}
+	return FVector();
 }

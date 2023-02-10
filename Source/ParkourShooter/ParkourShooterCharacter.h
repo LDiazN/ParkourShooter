@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "TimerManager.h"
 #include "ParkourShooterCharacter.generated.h"
 
 class UInputComponent;
@@ -57,32 +58,33 @@ protected:
 	enum class WallrunSide
 	{
 		Right, 
-		Side
+		Left
 	};
 
 	enum WallrunEndReason
 	{
 		Fall, 
-		Jump
+		JumpOff
 	};
 
-	bool IsOnWall() const;
+	bool IsOnWall() const { return bIsWallRunning; };
 
 	bool IsMovingForward() const;
 
 	void BeginWallrun();
 
+	UFUNCTION()
 	void UpdateWallrun();
 
-	void EndWallrun();
+	void EndWallrun(WallrunEndReason Reason);
 
-	void StartCameraTilt();
+	void BeginCameraTilt();
 
 	void UpdateCameraTilt();
 
 	void EndCameraTilt();
 
-	void FindWallrunDirectionAndSide(const FVector& SurfaceNormal, FVector& OutDirection, WallrunSide& Outside) const;
+	void FindWallrunDirectionAndSide(const FVector& SurfaceNormal, FVector& OutDirection, WallrunSide& OutSide) const;
 
 	void ResetJumps(int NewJumps);
 
@@ -90,9 +92,17 @@ protected:
 
 	bool CanRunInWall(FVector SurfaceNormal) const;
 
-	//void OnLanded();
+	/// <summary>
+	/// Checks if the character is facing away from the wall. You don't want to start 
+	/// wallrunning when you're running straight to the wall (your forward vector and normal surface would be anti parallel)
+	/// </summary>
+	/// <param name="SurfaceNormal">Normal of wall you want to check if your facing away</param>
+	/// <returns></returns>
+	bool IsFacingAwayEnoughFromWall(const FVector& SurfaceNormal) const;
 
-	void OnWallHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit);
+	//void OnLanded();
+	UFUNCTION()
+	void OnWallHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	virtual void Jump() override;
 
@@ -100,7 +110,7 @@ protected:
 
 	FVector FindLaunchVelocity() const;
 
-	bool AreRequiredKeysDown() const;
+	bool AreRequiredKeysDown(WallrunSide Side) const;
 
 	FVector2D GetHorizontalVelocity() const;
 
@@ -108,10 +118,24 @@ protected:
 	
 	void ClampHorizontalVelocity();
 
+	virtual void Tick(float DeltaSeconds) override;
+
 	WallrunSide CurrentSide;
-	bool bIsWallrunning;
+	bool bIsWallRunning;
 	float ForwardAxis, RightAxis;
 	FVector WallrunDirection;
+
+	// Use this variables to save and restore state we're changing when 
+	// starting a wall run
+	float OldGravityScale;
+	float OldAirControl;
+
+	/**This is the maximum angle between wall and forward vector to accept to start a wallrun*/
+	UPROPERTY(EditDefaultsOnly, Category = "Wallrun")
+	float ToleranceDegreesToStartWallrun = 45;
+
+	// Timer to manage wallrun update
+	FTimerHandle WallrunTimerHandle;
 
 	// -- < END WALLRUN > ----------------------------------------------------------------
 public:

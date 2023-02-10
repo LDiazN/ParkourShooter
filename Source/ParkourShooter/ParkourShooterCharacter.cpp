@@ -2,6 +2,7 @@
 
 #include "ParkourShooterCharacter.h"
 #include "ParkourShooterProjectile.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -23,9 +24,7 @@ AParkourShooterCharacter::AParkourShooterCharacter()
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
 
 	// Wallrun Initialization
-	OnActorHit.AddDynamic(this, &AParkourShooterCharacter::OnWallHit);
-	
-
+	GetCapsuleComponent()->OnComponentHit.AddDynamic(this, &AParkourShooterCharacter::OnWallHit);
 
 	// set our turn rates for input
 	BaseTurnRate = 45.f;
@@ -97,6 +96,8 @@ void AParkourShooterCharacter::BeginPlay()
 	//Attach gun mesh component to Skeleton, doing it here because the skeleton is not yet created in the constructor
 	FP_Gun->AttachToComponent(Mesh1P, FAttachmentTransformRules(EAttachmentRule::SnapToTarget, true), TEXT("GripPoint"));
 
+	GetCharacterMovement()->SetPlaneConstraintEnabled(true);
+
 	// Show or hide the two versions of the gun based on whether or not we're using motion controllers.
 	if (bUsingMotionControllers)
 	{
@@ -119,7 +120,7 @@ void AParkourShooterCharacter::SetupPlayerInputComponent(class UInputComponent* 
 	check(PlayerInputComponent);
 
 	// Bind jump events
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AParkourShooterCharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
 	// Bind fire event
@@ -261,6 +262,7 @@ void AParkourShooterCharacter::EndTouch(const ETouchIndex::Type FingerIndex, con
 
 void AParkourShooterCharacter::MoveForward(float Value)
 {
+	ForwardAxis = Value;
 	if (Value != 0.0f)
 	{
 		// add movement in that direction
@@ -270,6 +272,7 @@ void AParkourShooterCharacter::MoveForward(float Value)
 
 void AParkourShooterCharacter::MoveRight(float Value)
 {
+	RightAxis = Value;
 	if (Value != 0.0f)
 	{
 		// add movement in that direction
@@ -306,6 +309,150 @@ bool AParkourShooterCharacter::EnableTouchscreenMovement(class UInputComponent* 
 
 void AParkourShooterCharacter::BeginWallrun()
 {
+	// Save previous value for gravity scale and air control
+	OldAirControl = GetCharacterMovement()->AirControl;
+	OldGravityScale = GetCharacterMovement()->GravityScale;
+
+	GetCharacterMovement()->GravityScale = 0;
+	GetCharacterMovement()->AirControl = 1;
+	GetCharacterMovement()->SetPlaneConstraintNormal(FVector::UpVector);
+	
+	// Update State
+	bIsWallRunning = true;
+
+	// Start tilting camera
+	BeginCameraTilt();
+	// Start update wallrun times
+	GetWorldTimerManager().SetTimer(WallrunTimerHandle, this, &AParkourShooterCharacter::UpdateWallrun, 0.01, true, 0);
+
+	UE_LOG(LogTemp, Warning, TEXT("Starting wallrunning!"));
+}
+
+void AParkourShooterCharacter::UpdateWallrun()
+{
+	// Constantly get current side and direction
+	UE_LOG(LogTemp, Warning, TEXT("Wallrunning!"));
+
+	if (!AreRequiredKeysDown(CurrentSide) || GetCharacterMovement()->Velocity.SizeSquared() < 0.01)
+	{
+		EndWallrun(WallrunEndReason::Fall); 
+		return;
+	}
+
+	// Now we have to check if we're still wallrunning: We have to check if there's a wall to attach to
+	FVector Direction;
+	switch (CurrentSide)
+	{
+	case WallrunSide::Right:
+		Direction = FVector::CrossProduct(WallrunDirection, FVector(0,0,-1));
+		break;
+	case WallrunSide::Left:
+		Direction = FVector::CrossProduct(WallrunDirection, FVector(0,0,1));
+		break;
+	default:
+		break;
+	}
+
+	FHitResult Hit;
+	FCollisionQueryParams Params = FCollisionQueryParams::DefaultQueryParam;
+	Params.AddIgnoredActor(this);
+	bool HitSomething = GetWorld()->LineTraceSingleByChannel(
+		Hit, 
+		GetActorLocation(), 
+		GetActorLocation() + 200 * Direction, 
+		ECollisionChannel::ECC_Visibility,
+		Params
+	);
+
+
+	if (!HitSomething || !CanRunInWall(Hit.ImpactNormal))
+	{
+		EndWallrun(WallrunEndReason::Fall);
+		return;
+	}
+
+	// Now that we're still wall runninig, we have to update our direction
+	FVector NewDirection;
+	WallrunSide NewSide;
+
+	FindWallrunDirectionAndSide(Hit.ImpactNormal, NewDirection, NewSide);
+
+	if (NewSide != CurrentSide)
+	{
+		EndWallrun(WallrunEndReason::Fall);
+		return;
+	}
+
+	WallrunDirection = NewDirection;
+	FVector NewVelocity = WallrunDirection * GetCharacterMovement()->GetMaxSpeed();
+	NewVelocity.Z = 0;
+	GetCharacterMovement()->Velocity = NewVelocity;
+}
+
+void AParkourShooterCharacter::EndWallrun(WallrunEndReason Reason)
+{
+	GetWorldTimerManager().ClearTimer(WallrunTimerHandle);
+
+	// Reset jumps accordinly to the reason you fell off the wall
+	switch (Reason)
+	{
+	case WallrunEndReason::Fall:
+		ResetJumps(JumpCurrentCount - 1);
+		break;
+	case WallrunEndReason::JumpOff:
+		ResetJumps(1);
+		break;
+	default:
+		break;
+	}
+
+	// Roll back changes we did starting the wallrun
+	GetCharacterMovement()->GravityScale = OldGravityScale;
+	GetCharacterMovement()->AirControl = OldAirControl;
+	GetCharacterMovement()->SetPlaneConstraintNormal(FVector::ZeroVector);
+	bIsWallRunning = false;
+	EndCameraTilt();
+
+	UE_LOG(LogTemp, Warning, TEXT("Ending Wallrun"));
+}
+
+void AParkourShooterCharacter::BeginCameraTilt()
+{
+
+}
+
+void AParkourShooterCharacter::EndCameraTilt()
+{
+}
+
+void AParkourShooterCharacter::FindWallrunDirectionAndSide(const FVector& SurfaceNormal, FVector& OutDirection, WallrunSide& OutSide) const
+{
+	// Pick side, depends on the relationship between surface normal and forward vector
+	WallrunSide NewSide;
+
+	if (FVector::DotProduct(SurfaceNormal, GetActorRightVector()) > 0)
+		NewSide = WallrunSide::Left;
+	else
+		NewSide = WallrunSide::Right;
+
+	// Depending on side, we build a different resulting direction
+	FVector NewDirection;
+	switch (NewSide)
+	{
+	case WallrunSide::Right:
+		NewDirection = FVector::CrossProduct(SurfaceNormal, FVector(0, 0, -1));
+		break;
+	case WallrunSide::Left:
+		NewDirection = FVector::CrossProduct(SurfaceNormal, FVector(0, 0, 1));
+		break;
+	default:
+		break;
+	}
+
+
+
+	OutSide = NewSide;
+	OutDirection = NewDirection;
 }
 
 void AParkourShooterCharacter::ResetJumps(int NewJumps)
@@ -316,14 +463,72 @@ void AParkourShooterCharacter::ResetJumps(int NewJumps)
 bool AParkourShooterCharacter::ConsumeJump()
 {
 	if (IsOnWall())
-		return true;
-	else if (JumpCurrentCount > 0)
 	{
-		//JumpCurrentCount--;
+		return true;
+	}
+	else if (JumpCurrentCount < JumpMaxCount)
+	{
+		// JumpCurrentCount++;
 		return true;
 	}
 
 	return false;
+}
+
+bool AParkourShooterCharacter::CanRunInWall(FVector SurfaceNormal) const
+{
+
+	// Check if this is the ceilling
+	if (SurfaceNormal.Z < -0.05)
+		return false;
+
+	// Now we have to check surface angle. We can do it by taking the dot product between the normal 
+	// vector and its own XY projection
+	FVector Projection = FVector(SurfaceNormal.X, SurfaceNormal.Y, 0);
+	Projection.Normalize();
+	float FloorAngle = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(SurfaceNormal, Projection)));
+	FloorAngle = 180 - FloorAngle - 90;
+	
+	if (GetCharacterMovement()->GetWalkableFloorAngle() >= FloorAngle || !IsFacingAwayEnoughFromWall(SurfaceNormal))
+	{
+		return false;
+	}
+
+
+	return true;
+}
+
+bool AParkourShooterCharacter::IsFacingAwayEnoughFromWall(const FVector& SurfaceNormal) const
+{
+	float AngleToWall = FVector2D::DotProduct(FVector2D(SurfaceNormal), FVector2D(GetActorForwardVector()));
+	AngleToWall = FMath::RadiansToDegrees(FMath::Acos(AngleToWall)) - 90.f;
+
+	return AngleToWall <= ToleranceDegreesToStartWallrun;
+}
+
+void AParkourShooterCharacter::OnWallHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	// We do nothing when:
+	// - We're just running around in the ground
+	// - We're already on the wall, nothing to do
+	// - The surface can't even be runable, like a ceilling
+	if (IsOnWall() || !GetCharacterMovement()->IsFalling() || !CanRunInWall(Hit.Normal))
+		return;
+
+	// Now that we know we hit a valid wall, we can start a new wallrun: We have to find out direction and side
+	FVector NewDirection;
+	WallrunSide NewSide;
+
+	FindWallrunDirectionAndSide(Hit.Normal, NewDirection, NewSide);
+
+	// Now we have to check if all required keys are down.
+	if (!AreRequiredKeysDown(NewSide))
+		return;
+
+	WallrunDirection = NewDirection;
+	CurrentSide = NewSide;
+
+	BeginWallrun();
 }
 
 void AParkourShooterCharacter::Jump()
@@ -334,19 +539,22 @@ void AParkourShooterCharacter::Jump()
 	if (!ConsumeJump())
 		return;
 
+	if (IsOnWall())
+		EndWallrun(WallrunEndReason::JumpOff);
+
 	LaunchCharacter(FindLaunchVelocity(), false, true);
 }
 
 void AParkourShooterCharacter::Landed(const FHitResult& Hit)
 {
 	Super::Landed(Hit);
-	ResetJumps(JumpMaxCount);
+	ResetJumps(0);
 }
 
 FVector AParkourShooterCharacter::FindLaunchVelocity() const
 {
 
-	FVector LaunchDirection;
+	FVector LaunchDirection(0,0,0);
 	if (IsOnWall())
 	{
 		switch (CurrentSide)
@@ -361,5 +569,63 @@ FVector AParkourShooterCharacter::FindLaunchVelocity() const
 			break;
 		}
 	}
-	return FVector();
+	else if (GetCharacterMovement()->IsFalling() && JumpCurrentCount < JumpMaxCount)
+	{
+		LaunchDirection = GetActorRightVector() * RightAxis + GetActorForwardVector() * RightAxis;
+	}
+	return LaunchDirection + FVector::UpVector * GetCharacterMovement()->JumpZVelocity;
+}
+
+bool AParkourShooterCharacter::AreRequiredKeysDown(WallrunSide Side) const
+{
+	/// Minimum presure required to trigger run
+	const float MIN_REQUIRED_PRESSURE = 0.1f;
+
+	// To walrrun yo need to direct your character towards the wall
+
+	switch (Side)
+	{
+	case WallrunSide::Right:
+		return ForwardAxis > MIN_REQUIRED_PRESSURE && RightAxis > MIN_REQUIRED_PRESSURE;
+	case WallrunSide::Left:
+		return ForwardAxis > MIN_REQUIRED_PRESSURE && RightAxis < -MIN_REQUIRED_PRESSURE;
+	default:
+		break;
+	}
+
+	return false;
+}
+
+FVector2D AParkourShooterCharacter::GetHorizontalVelocity() const
+{
+	return FVector2D(GetCharacterMovement()->Velocity);
+}
+
+void AParkourShooterCharacter::SetHorizontalVelocity(FVector2D NewVelocity)
+{
+	FVector Velocity = GetCharacterMovement()->Velocity;
+	Velocity.X = NewVelocity.X;
+	Velocity.Y = NewVelocity.Y;
+	GetCharacterMovement()->Velocity = Velocity;
+}
+
+void AParkourShooterCharacter::ClampHorizontalVelocity()
+{
+	if (GetCharacterMovement()->IsFalling())
+	{
+		FVector2D HorizontalVelocity = GetHorizontalVelocity();
+		float MaxSpeed = GetCharacterMovement()->GetMaxSpeed();
+		if (HorizontalVelocity.SizeSquared() > MaxSpeed * MaxSpeed)
+		{
+			HorizontalVelocity.Normalize();
+			HorizontalVelocity *= MaxSpeed;
+		}
+
+		SetHorizontalVelocity(HorizontalVelocity);
+	}
+}
+
+void AParkourShooterCharacter::Tick(float DeltaSeconds)
+{
+	ClampHorizontalVelocity();
 }

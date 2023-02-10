@@ -122,6 +122,8 @@ protected:
 
 	virtual void Tick(float DeltaSeconds) override;
 
+	bool IsFastEnoughToWallrun() const;
+
 	WallrunSide CurrentSide;
 	bool bIsWallRunning;
 	float ForwardAxis, RightAxis;
@@ -152,6 +154,10 @@ protected:
 	/** Max angle to tilt the camera when doing wallrun */
 	UPROPERTY(EditDefaultsOnly, Category = "Wallrun")
 	float MaxTiltAngle = 30;
+
+	/** Minimal wallrun horizontal speed, defaults to half of max walk speed */
+	UPROPERTY(EditAnywhere, Category = "Wallrun")
+	float MinimumWallrunSpeed;
 
 	// -- < END WALLRUN > ----------------------------------------------------------------
 public:

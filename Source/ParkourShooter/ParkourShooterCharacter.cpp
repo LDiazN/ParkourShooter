@@ -26,6 +26,7 @@ AParkourShooterCharacter::AParkourShooterCharacter()
 	// Wallrun Initialization
 	GetCapsuleComponent()->OnComponentHit.AddDynamic(this, &AParkourShooterCharacter::OnWallHit);
 	CameraTiltTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("CameraTiltTimeline"));
+	MinimumWallrunSpeed = GetCharacterMovement()->GetMaxSpeed() / 2;
 
 	// set our turn rates for input
 	BaseTurnRate = 45.f;
@@ -341,9 +342,8 @@ void AParkourShooterCharacter::BeginWallrun()
 void AParkourShooterCharacter::UpdateWallrun()
 {
 	// Constantly get current side and direction
-	UE_LOG(LogTemp, Warning, TEXT("Wallrunning!"));
 
-	if (!AreRequiredKeysDown(CurrentSide) || GetCharacterMovement()->Velocity.SizeSquared() < 0.01)
+	if (!AreRequiredKeysDown(CurrentSide) || !IsFastEnoughToWallrun())
 	{
 		EndWallrun(WallrunEndReason::Fall); 
 		return;
@@ -548,7 +548,7 @@ void AParkourShooterCharacter::OnWallHit(UPrimitiveComponent* HitComponent, AAct
 	// - We're just running around in the ground
 	// - We're already on the wall, nothing to do
 	// - The surface can't even be runable, like a ceilling
-	if (IsOnWall() || !GetCharacterMovement()->IsFalling() || !CanRunInWall(Hit.Normal) || FVector2D(GetCharacterMovement()->Velocity).SizeSquared() < 0.01)
+	if (IsOnWall() || !GetCharacterMovement()->IsFalling() || !CanRunInWall(Hit.Normal) || !IsFastEnoughToWallrun())
 		return;
 
 	// Now that we know we hit a valid wall, we can start a new wallrun: We have to find out direction and side
@@ -667,4 +667,11 @@ void AParkourShooterCharacter::ClampHorizontalVelocity()
 void AParkourShooterCharacter::Tick(float DeltaSeconds)
 {
 	ClampHorizontalVelocity();
+}
+
+bool AParkourShooterCharacter::IsFastEnoughToWallrun() const
+{
+	float SquaredSpeed = FVector2D(GetCharacterMovement()->Velocity).SizeSquared();
+	UE_LOG(LogTemp, Warning, TEXT("Current Speed: %f, Minimum Speed: %f"), FMath::Sqrt(SquaredSpeed), MinimumWallrunSpeed);
+	return SquaredSpeed >= MinimumWallrunSpeed * MinimumWallrunSpeed;
 }

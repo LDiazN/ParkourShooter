@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "TimerManager.h"
+#include "Components/TimelineComponent.h"
 #include "ParkourShooterCharacter.generated.h"
 
 class UInputComponent;
@@ -80,7 +81,8 @@ protected:
 
 	void BeginCameraTilt();
 
-	void UpdateCameraTilt();
+	UFUNCTION()
+	void UpdateCameraTilt(float NewTilt);
 
 	void EndCameraTilt();
 
@@ -137,6 +139,20 @@ protected:
 	// Timer to manage wallrun update
 	FTimerHandle WallrunTimerHandle;
 
+	// Data to manage timeline for tilting camera
+	UPROPERTY(EditDefaultsOnly, Category = "Wallrun")
+	UCurveFloat* CameraTiltCurve;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	UTimelineComponent* CameraTiltTimeline;
+
+	// Track used to update camera tilting
+	FOnTimelineFloat CameraTiltTrack;
+
+	/** Max angle to tilt the camera when doing wallrun */
+	UPROPERTY(EditDefaultsOnly, Category = "Wallrun")
+	float MaxTiltAngle = 30;
+
 	// -- < END WALLRUN > ----------------------------------------------------------------
 public:
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
@@ -166,6 +182,7 @@ public:
 	/** Whether to use motion controller location for aiming. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
 	uint32 bUsingMotionControllers : 1;
+
 
 protected:
 	

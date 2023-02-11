@@ -12,6 +12,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "MotionControllerComponent.h"
 #include "XRMotionControllerBase.h" // for FXRMotionControllerBase::RightHandSourceId
+#include "VaultComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 
@@ -27,6 +28,9 @@ AParkourShooterCharacter::AParkourShooterCharacter()
 	GetCapsuleComponent()->OnComponentHit.AddDynamic(this, &AParkourShooterCharacter::OnWallHit);
 	CameraTiltTimeline = CreateDefaultSubobject<UTimelineComponent>(TEXT("CameraTiltTimeline"));
 	MinimumWallrunSpeed = GetCharacterMovement()->GetMaxSpeed() / 2;
+
+	// Vaulting
+	VaultComponent = CreateDefaultSubobject<UVaultComponent>(TEXT("VaultingComponent"));
 
 	// set our turn rates for input
 	BaseTurnRate = 45.f;

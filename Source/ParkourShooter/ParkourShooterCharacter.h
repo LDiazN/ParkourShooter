@@ -9,6 +9,7 @@
 #include "ParkourShooterCharacter.generated.h"
 
 class UInputComponent;
+class UVaultComponent;
 
 UCLASS(config=Game)
 class AParkourShooterCharacter : public ACharacter
@@ -53,6 +54,10 @@ public:
 protected:
 	virtual void BeginPlay();
 
+	// -- < Vaulting > -------------------------------------------------------------------
+	// Vaulting is like grabbing on ledges to jump over things
+	UPROPERTY(EditDefaultsOnly, Category = "Vaulting")
+	UVaultComponent* VaultComponent;
 	// -- < WALLRUN > --------------------------------------------------------------------
 
 protected:
@@ -67,6 +72,9 @@ protected:
 		Fall, 
 		JumpOff
 	};
+
+	UFUNCTION(BlueprintPure)
+	int32 JumpCount() const { return JumpCurrentCount; }
 
 	bool IsOnWall() const { return bIsWallRunning; };
 

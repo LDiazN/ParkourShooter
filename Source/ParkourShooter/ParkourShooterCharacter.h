@@ -59,6 +59,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Vaulting")
 	UVaultComponent* VaultComponent;
 
+	/// <summary>
+	/// Vault function called when holding the jump button in the air
+	/// </summary>
+	virtual void VaultOnHold();
+
 public:
 	UFUNCTION(BlueprintCallable)
 	bool IsVaulting() const;
@@ -84,8 +89,6 @@ protected:
 	int32 JumpCount() const { return JumpCurrentCount; }
 
 	bool IsOnWall() const { return bIsWallRunning; };
-
-	bool IsMovingForward() const;
 
 	void BeginWallrun();
 

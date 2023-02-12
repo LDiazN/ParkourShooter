@@ -126,6 +126,21 @@ void AParkourShooterCharacter::BeginPlay()
 
 }
 
+void AParkourShooterCharacter::VaultOnHold()
+{
+	// If not in the air, we have nothing to do
+	if (!GetCharacterMovement()->IsFalling())
+		return;
+
+	// If you can't vault, do nothing
+	FVector VaultPosition;
+	if (!VaultComponent->CanVault(VaultPosition))
+		return;
+
+	// If you can vault and are holding jump, then vault
+	VaultComponent->BeginVault(VaultPosition);
+}
+
 bool AParkourShooterCharacter::IsVaulting() const
 {
 	return VaultComponent->IsVaulting();
@@ -141,6 +156,7 @@ void AParkourShooterCharacter::SetupPlayerInputComponent(class UInputComponent* 
 
 	// Bind jump events
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AParkourShooterCharacter::Jump);
+	PlayerInputComponent->BindAction("Jump", IE_Repeat, this, &AParkourShooterCharacter::VaultOnHold);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
 
 	// Bind fire event

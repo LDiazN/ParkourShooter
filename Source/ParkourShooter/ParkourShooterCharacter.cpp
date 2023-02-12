@@ -126,6 +126,11 @@ void AParkourShooterCharacter::BeginPlay()
 
 }
 
+bool AParkourShooterCharacter::IsVaulting() const
+{
+	return VaultComponent->IsVaulting();
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Input
 
@@ -529,13 +534,7 @@ bool AParkourShooterCharacter::CanRunInWall(FVector SurfaceNormal) const
 	float FloorAngle = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(SurfaceNormal, Projection)));
 	FloorAngle = 180 - FloorAngle - 90;
 	
-	if (GetCharacterMovement()->GetWalkableFloorAngle() >= FloorAngle || !IsFacingAwayEnoughFromWall(SurfaceNormal))
-	{
-		return false;
-	}
-
-
-	return true;
+	return  !(GetCharacterMovement()->GetWalkableFloorAngle() >= FloorAngle || !IsFacingAwayEnoughFromWall(SurfaceNormal));
 }
 
 bool AParkourShooterCharacter::IsFacingAwayEnoughFromWall(const FVector& SurfaceNormal) const
@@ -573,18 +572,26 @@ void AParkourShooterCharacter::OnWallHit(UPrimitiveComponent* HitComponent, AAct
 
 void AParkourShooterCharacter::Jump()
 {
-	Super::Jump();
-
-	// If couldn't jump, just end
-	if (!ConsumeJump())
-		return;
-
-	LaunchCharacter(FindLaunchVelocity(), false, true);
-
-	if (IsOnWall())
+	FVector VaultPosition;
+	if (!VaultComponent->CanVault(VaultPosition))
 	{
-		EndWallrun(WallrunEndReason::JumpOff);
+		Super::Jump();
+
+		// If couldn't jump, just end
+		if (!ConsumeJump())
+			return;
+
+		LaunchCharacter(FindLaunchVelocity(), false, true);
+
+		if (IsOnWall())
+		{
+			EndWallrun(WallrunEndReason::JumpOff);
+		}
+
+		return;
 	}
+
+	VaultComponent->BeginVault(VaultPosition);
 }
 
 void AParkourShooterCharacter::Landed(const FHitResult& Hit)

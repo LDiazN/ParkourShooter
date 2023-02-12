@@ -58,6 +58,13 @@ protected:
 	// Vaulting is like grabbing on ledges to jump over things
 	UPROPERTY(EditDefaultsOnly, Category = "Vaulting")
 	UVaultComponent* VaultComponent;
+
+public:
+	UFUNCTION(BlueprintCallable)
+	bool IsVaulting() const;
+
+	// -- < End Vaulting > ---------------------------------------------------------------
+
 	// -- < WALLRUN > --------------------------------------------------------------------
 
 protected:

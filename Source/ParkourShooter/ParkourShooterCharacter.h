@@ -11,6 +11,15 @@
 class UInputComponent;
 class UVaultComponent;
 
+UENUM()
+enum  MovementState
+{
+	Walking UMETA(DisplayName = "Walking"),
+	Sprinting UMETA(DisplayName = "Sprinting"),
+	Crouching UMETA(DisplayName = "Crouching"),
+	Sliding UMETA(DisplayName = "Sliding")
+};
+
 UCLASS(config=Game)
 class AParkourShooterCharacter : public ACharacter
 {
@@ -61,19 +70,10 @@ protected:
 
 protected:
 
-	enum class MovementState
-	{
-		Walking, 
-		Sprinting,
-		Crouching,
-		Sliding
-	};
 
-	MovementState CurrentMovementState = MovementState::Sprinting;
+	MovementState CurrentMovementState = MovementState::Walking;
 	bool IsCrouchKeyDown;
 	bool IsSprintKeyDown = true; // If we choose to have a sprint button, this might be more helpful. For now it will be always true
-	float StandingHalfHeight;
-	float StandingCameraZOffset;
 
 	/**Max speed when in walking state. Remember that you are almost always RUNNING instead of walking*/
 	UPROPERTY(EditAnywhere, Category = "Movement")
@@ -91,26 +91,71 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	float MaxSprintSpeed = 1200;
 
+	float StandingHalfHeight;
+	float StandingCameraZOffset;
 
+	/** Half Height of player capsule on crouch */
+	UPROPERTY(EditDefaultsOnly, Category = "Slide")
+	float CrouchHalfHeight = 45;
 
+	/** Height of camera when crouching */
+	UPROPERTY(EditDefaultsOnly, Category = "Slide")
+	float CrouchCameraZOffset = 25;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Slide")
+	float FloorInfluenceForce = 500000;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Slide")
+	float MinBrakingDecelerationOnSlide = 1000;
+	UPROPERTY(EditDefaultsOnly, Category = "Slide")
+	float MinFrictionOnSlide = 1;
+	float OriginalFriction = 8;
+	float OriginalBrakingDeceleration;
+
+	/** Force applied to you the moment you start a slide */
+	UPROPERTY(EditDefaultsOnly, Category = "Slide")
+	float ForwardSlideInitialPush = 800;
 
 	void Slide();
+	void SlideRelease();
 	void Sprint();
-	void SprintRelaese();
+	void SprintRelease();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Slide")
+	void BeginSlideBP();
 
 	void BeginSlide();
+
+	UFUNCTION(BlueprintCallable, Category = "Slide")
+	void UpdateSlide();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Slide")
+	void EndSlideBP();
+
 	void EndSlide();
+
+	UFUNCTION(BlueprintImplementableEvent)
 	void BeginCrouch();
+
+	UFUNCTION(BlueprintCallable)
+	void UpdateCrouch(float Progress);
+
+	UFUNCTION(BlueprintImplementableEvent)
 	void EndCrouch();
+
 	MovementState ResolveMovementState() const;
 	void SetMovementState(MovementState NewState);
 	void OnMovementStateChanged(MovementState OldState, MovementState NewState);
-	void ComputeFloorInfluence();
+
+	// Compute floor direction downwards
+	FVector ComputeFloorInfluence(FVector FloorNormal) const;
 	bool CanSprint() const;
 	bool CanStand() const;
 	bool GetSprintKeyDown() const { return true; }
 	bool GetCrouchKeyDown() const { return IsCrouchKeyDown; }
 
+	UFUNCTION(BlueprintCallable)
+	MovementState GetMovementState() const { return CurrentMovementState; }
 
 	// -- < End of Sliding > -------------------------------------------------------------
 	// -- < Vaulting > -------------------------------------------------------------------
@@ -158,7 +203,7 @@ protected:
 
 	void BeginCameraTilt();
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	void UpdateCameraTilt(float NewTilt);
 
 	void EndCameraTilt();

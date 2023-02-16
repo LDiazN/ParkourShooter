@@ -54,6 +54,65 @@ public:
 protected:
 	virtual void BeginPlay();
 
+	UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float AirControl;
+
+	// -- < Sliding > --------------------------------------------------------------------
+
+protected:
+
+	enum class MovementState
+	{
+		Walking, 
+		Sprinting,
+		Crouching,
+		Sliding
+	};
+
+	MovementState CurrentMovementState = MovementState::Sprinting;
+	bool IsCrouchKeyDown;
+	bool IsSprintKeyDown = true; // If we choose to have a sprint button, this might be more helpful. For now it will be always true
+	float StandingHalfHeight;
+	float StandingCameraZOffset;
+
+	/**Max speed when in walking state. Remember that you are almost always RUNNING instead of walking*/
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float MaxWalkSpeed = 800;
+
+	/**Max speed when in crouching state. Remember that you are almost always RUNNING and crounching only happens under a small ceiling*/
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float MaxCrouchSpeed = 400;
+
+	/**Max speed when in sliding state. Note that sliding might be affected by slope of surface, so this is MAX speed, not THE speed*/
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float MaxSlideSpeed = 1600;
+
+	/**Max speed when sprinting. This will be your state most of the time*/
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float MaxSprintSpeed = 1200;
+
+
+
+
+	void Slide();
+	void Sprint();
+	void SprintRelaese();
+
+	void BeginSlide();
+	void EndSlide();
+	void BeginCrouch();
+	void EndCrouch();
+	MovementState ResolveMovementState() const;
+	void SetMovementState(MovementState NewState);
+	void OnMovementStateChanged(MovementState OldState, MovementState NewState);
+	void ComputeFloorInfluence();
+	bool CanSprint() const;
+	bool CanStand() const;
+	bool GetSprintKeyDown() const { return true; }
+	bool GetCrouchKeyDown() const { return IsCrouchKeyDown; }
+
+
+	// -- < End of Sliding > -------------------------------------------------------------
 	// -- < Vaulting > -------------------------------------------------------------------
 	// Vaulting is like grabbing on ledges to jump over things
 	UPROPERTY(EditDefaultsOnly, Category = "Vaulting")

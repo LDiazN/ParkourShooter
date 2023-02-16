@@ -124,6 +124,73 @@ void AParkourShooterCharacter::BeginPlay()
 		CameraTiltTimeline->AddInterpFloat(CameraTiltCurve, CameraTiltTrack);
 	}
 
+	// Movement Setup
+	GetCharacterMovement()->AirControl = AirControl;
+
+	StandingHalfHeight = GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+	StandingCameraZOffset = GetFirstPersonCameraComponent()->GetRelativeLocation().Z;
+	SetMovementState(MovementState::Sprinting);
+}
+
+void AParkourShooterCharacter::Slide()
+{
+	
+}
+
+void AParkourShooterCharacter::Sprint()
+{
+	SetMovementState(MovementState::Sprinting);
+	IsSprintKeyDown = true;
+
+	// Set movement to sprinting when walking and crouching,
+	// we do something different in slide
+	switch (CurrentMovementState)
+	{
+	case MovementState::Walking:
+	case MovementState::Crouching:
+		SetMovementState(MovementState::Sprinting);
+		break;
+	default:
+		break;
+	}
+}
+
+void AParkourShooterCharacter::SprintRelaese()
+{
+	// You never stop sprinting
+	// IsSprintKeyDown = false;
+	MovementState NewState = MovementState::Sprinting;
+	switch (CurrentMovementState)
+	{
+	case MovementState::Walking:
+		break;
+	case MovementState::Sprinting:
+		NewState = ResolveMovementState();
+		SetMovementState(NewState);
+		break;
+	case MovementState::Crouching:
+		break;
+	case MovementState::Sliding:
+		break;
+	default:
+		break;
+	}
+}
+
+void AParkourShooterCharacter::BeginSlide()
+{
+}
+
+void AParkourShooterCharacter::EndSlide()
+{
+}
+
+void AParkourShooterCharacter::BeginCrouch()
+{
+}
+
+void AParkourShooterCharacter::EndCrouch()
+{
 }
 
 void AParkourShooterCharacter::VaultOnHold()
@@ -143,7 +210,10 @@ void AParkourShooterCharacter::VaultOnHold()
 
 bool AParkourShooterCharacter::IsVaulting() const
 {
-	return VaultComponent->IsVaulting();
+	if (VaultComponent != nullptr)
+		return VaultComponent->IsVaulting();
+
+	return false;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -170,6 +240,9 @@ void AParkourShooterCharacter::SetupPlayerInputComponent(class UInputComponent* 
 	// Bind movement events
 	PlayerInputComponent->BindAxis("MoveForward", this, &AParkourShooterCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AParkourShooterCharacter::MoveRight);
+	PlayerInputComponent->BindAction("Slide", IE_Pressed, this, &AParkourShooterCharacter::Slide);
+	// TODO should add sprinting binding even tho they do nothhing
+
 
 	// We have 2 versions of the rotation bindings to handle different kinds of devices differently
 	// "turn" handles devices that provide an absolute delta, such as a mouse.
@@ -358,10 +431,9 @@ void AParkourShooterCharacter::BeginWallrun()
 
 	// Start tilting camera
 	BeginCameraTilt();
+
 	// Start update wallrun times
 	GetWorldTimerManager().SetTimer(WallrunTimerHandle, this, &AParkourShooterCharacter::UpdateWallrun, 0.1, true, 0);
-
-	UE_LOG(LogTemp, Warning, TEXT("Starting wallrunning!"));
 }
 
 void AParkourShooterCharacter::UpdateWallrun()
@@ -447,8 +519,6 @@ void AParkourShooterCharacter::EndWallrun(WallrunEndReason Reason)
 	GetCharacterMovement()->SetPlaneConstraintNormal(FVector::ZeroVector);
 	bIsWallRunning = false;
 	EndCameraTilt();
-
-	UE_LOG(LogTemp, Warning, TEXT("Ending Wallrun"));
 }
 
 void AParkourShooterCharacter::BeginCameraTilt()
@@ -636,7 +706,6 @@ FVector AParkourShooterCharacter::FindLaunchVelocity() const
 	}
 	else if (GetCharacterMovement()->IsFalling() && JumpCurrentCount < JumpMaxCount)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Direction is (%f, %f)"), RightAxis, ForwardAxis);
 		LaunchDirection = GetActorRightVector() * RightAxis + GetActorForwardVector() * ForwardAxis;
 	}
 	return GetCharacterMovement()->JumpZVelocity * LaunchDirection + FVector::UpVector * GetCharacterMovement()->JumpZVelocity;
@@ -699,6 +768,98 @@ void AParkourShooterCharacter::Tick(float DeltaSeconds)
 bool AParkourShooterCharacter::IsFastEnoughToWallrun() const
 {
 	float SquaredSpeed = FVector2D(GetCharacterMovement()->Velocity).SizeSquared();
-	UE_LOG(LogTemp, Warning, TEXT("Current Speed: %f, Minimum Speed: %f"), FMath::Sqrt(SquaredSpeed), MinimumWallrunSpeed);
 	return SquaredSpeed >= MinimumWallrunSpeed * MinimumWallrunSpeed;
+}
+
+AParkourShooterCharacter::MovementState AParkourShooterCharacter::ResolveMovementState() const
+{
+	// If you can't stand, you can't do anything but crouch
+
+	if (!CanStand())
+		return MovementState::Crouching;
+	else if (CanSprint())
+		return MovementState::Sprinting;
+	else
+		return MovementState::Walking;
+}
+
+void AParkourShooterCharacter::SetMovementState(MovementState NewState)
+{
+	// If it's the same as our current state, we just end, nothing to do
+	if (NewState == CurrentMovementState) return;
+
+	MovementState OldState = CurrentMovementState;
+	CurrentMovementState = NewState;
+
+	// Note that we save old state to be able to properly respond in the state change function
+	OnMovementStateChanged(OldState, NewState);
+
+	// Now we have to restore different things depending on previous state
+	switch (CurrentMovementState)
+	{
+	case AParkourShooterCharacter::MovementState::Walking:
+	case AParkourShooterCharacter::MovementState::Sprinting:
+		EndCrouch();
+		break;
+	case AParkourShooterCharacter::MovementState::Crouching:
+		BeginCrouch();
+		break;
+	case AParkourShooterCharacter::MovementState::Sliding:
+		// Slide is crouch and slide at the same time
+		BeginCrouch();
+		BeginSlide();
+		break;
+	default:
+		break;
+	}
+}
+
+void AParkourShooterCharacter::OnMovementStateChanged(MovementState OldState, MovementState NewState)
+{
+
+	float NewMaxSpeed;
+	switch (NewState)
+	{
+	case AParkourShooterCharacter::MovementState::Walking:
+		NewMaxSpeed = MaxWalkSpeed;
+		break;
+	case AParkourShooterCharacter::MovementState::Sprinting:
+		NewMaxSpeed = MaxSprintSpeed;
+		break;
+	case AParkourShooterCharacter::MovementState::Crouching:
+		NewMaxSpeed = MaxCrouchSpeed;
+		break;
+	case AParkourShooterCharacter::MovementState::Sliding:
+		NewMaxSpeed = MaxSlideSpeed;
+		break;
+	default:
+		break;
+	}
+
+	GetCharacterMovement()->MaxWalkSpeed = NewMaxSpeed;
+
+}
+
+bool AParkourShooterCharacter::CanSprint() const
+{
+	return GetSprintKeyDown() && !GetCharacterMovement()->IsFalling() && CanStand();
+}
+
+bool AParkourShooterCharacter::CanStand() const
+{
+	// You want to be always standing, but if we choose to change it, here's the code for crouch
+	//if (GetCrouchKeyDown()) return false;
+
+	// We have to check if there's something over our heads stoping us from standing.
+	// Note that since we want to know if it's something where our head will be when we stand, we will 
+	// cast a ray from our feet to our next head location, and this location depends on our old half height, not 
+	// our current half height
+	FVector StartLocation = GetActorLocation() - FVector(0,0, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+	FVector EndLocation = StartLocation + FVector(0,0, 2 * StandingHalfHeight);
+	FHitResult Hit;
+	FCollisionQueryParams Params = FCollisionQueryParams::DefaultQueryParam;
+	Params.AddIgnoredActor(this);
+	bool HitSomething = GetWorld()->LineTraceSingleByChannel(Hit, StartLocation, EndLocation, ECollisionChannel::ECC_Visibility, Params);
+
+	return !HitSomething;
 }

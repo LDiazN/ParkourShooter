@@ -13,6 +13,7 @@
 #include "MotionControllerComponent.h"
 #include "XRMotionControllerBase.h" // for FXRMotionControllerBase::RightHandSourceId
 #include "VaultComponent.h"
+#include "GraplingHookComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 
@@ -37,6 +38,11 @@ AParkourShooterCharacter::AParkourShooterCharacter()
 
 	// Vaulting
 	VaultComponent = CreateDefaultSubobject<UVaultComponent>(TEXT("VaultingComponent"));
+
+	// Grappling Hook
+	GrapplingHook = CreateDefaultSubobject<UGraplingHookComponent>(TEXT("GrapplingHookComponent"));
+	GrapplingHookSpawnPoint = CreateDefaultSubobject<USceneComponent>(TEXT("GrapplingHookSpawnPoint"));
+	GrapplingHookSpawnPoint->SetupAttachment(RootComponent);
 
 	// set our turn rates for input
 	BaseTurnRate = 45.f;
@@ -290,6 +296,10 @@ void AParkourShooterCharacter::SetupPlayerInputComponent(class UInputComponent* 
 	// Bind fire event
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AParkourShooterCharacter::OnFire);
 
+	// Bind grapple hook
+	PlayerInputComponent->BindAction("ShootGrapple", IE_Pressed, this, &AParkourShooterCharacter::ShootGrapplingHook);
+	PlayerInputComponent->BindAction("ShootGrapple", IE_Released, this, &AParkourShooterCharacter::CancelGrapplingHook);
+
 	// Enable touchscreen input
 	EnableTouchscreenMovement(PlayerInputComponent);
 
@@ -361,6 +371,43 @@ void AParkourShooterCharacter::OnFire()
 			AnimInstance->Montage_Play(FireAnimation, 1.f);
 		}
 	}
+}
+
+void AParkourShooterCharacter::ShootGrapplingHook()
+{
+	// We have to compute the resulting location where we want to grapple to,
+	// we will raycast in the direction of the camera's POV
+	UCameraComponent* Camera = GetFirstPersonCameraComponent();
+
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (PlayerController == nullptr)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Can't get controller for FPS character to use Grapple hook"));
+		return;
+	}
+	// TODO: We have to offset this start position so it matches with your sight
+	FVector StartPosition = PlayerController->PlayerCameraManager->GetCameraLocation();
+	FVector CameraForward = GetFirstPersonCameraComponent()->GetForwardVector();
+
+	FHitResult Hit;
+	auto Params = FCollisionQueryParams::DefaultQueryParam;
+	Params.AddIgnoredActor(this);
+
+	// DEBUG ONLY: DELETE LATER
+	auto nametag = FName("DebugRay");
+	Params.TraceTag = nametag;
+	GetWorld()->DebugDrawTraceTag = nametag;
+	// ------------------------
+
+	bool HitSomething = GetWorld()->LineTraceSingleByChannel(Hit, StartPosition, CameraForward * MaxHookReachDistance, ECC_Visibility, Params);
+	FVector FinalPosition = HitSomething ? Hit.ImpactPoint : Hit.TraceEnd;
+
+	GrapplingHook->FireGrapple(FinalPosition, GrapplingHookSpawnPoint->GetRelativeLocation());
+}
+
+void AParkourShooterCharacter::CancelGrapplingHook()
+{
+	GrapplingHook->CancelGrapple();
 }
 
 void AParkourShooterCharacter::OnResetVR()

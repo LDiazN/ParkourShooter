@@ -10,6 +10,7 @@
 
 class UInputComponent;
 class UVaultComponent;
+class UGraplingHookComponent;
 
 UENUM()
 enum  MovementState
@@ -282,6 +283,30 @@ protected:
 	float MinimumWallrunSpeed;
 
 	// -- < END WALLRUN > ----------------------------------------------------------------
+
+	// -- < BEGIN GRAPPLING HOOK > -------------------------------------------------------
+protected:
+	
+	/** Fires grappling hook */
+	void ShootGrapplingHook();
+	void CancelGrapplingHook();
+
+
+	UPROPERTY(EditDefaultsOnly, Category = "Grappling Hook")
+	UGraplingHookComponent* GrapplingHook;
+
+	UPROPERTY(EditAnywhere, Category = "Grappling Hook")
+	float MaxHookReachDistance = 100000.f;
+
+	/** 
+	Where, relative to the player, to spawn the grappling hook
+	*/
+	UPROPERTY(EditDefaultsOnly, Category = "Grappling Hook")
+	USceneComponent* GrapplingHookSpawnPoint;
+
+	// -- < END GRAPPLING HOOK  > ----------------------------------------------------------------
+
+
 public:
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Camera)

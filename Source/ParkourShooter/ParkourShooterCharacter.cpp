@@ -394,9 +394,9 @@ void AParkourShooterCharacter::ShootGrapplingHook()
 	Params.AddIgnoredActor(this);
 
 	// DEBUG ONLY: DELETE LATER
-	auto nametag = FName("DebugRay");
-	Params.TraceTag = nametag;
-	GetWorld()->DebugDrawTraceTag = nametag;
+	// auto nametag = FName("DebugRay");
+	// Params.TraceTag = nametag;
+	// GetWorld()->DebugDrawTraceTag = nametag;
 	// ------------------------
 
 	bool HitSomething = GetWorld()->LineTraceSingleByChannel(Hit, StartPosition, CameraForward * MaxHookReachDistance, ECC_Visibility, Params);

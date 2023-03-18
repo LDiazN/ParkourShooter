@@ -2,6 +2,7 @@
 
 
 #include "GraplingHookComponent.h"
+#include "CableComponent.h"
 #include "GrapleHook.h"
 
 // Sets default values for this component's properties
@@ -17,9 +18,24 @@ UGraplingHookComponent::UGraplingHookComponent()
 
 void UGraplingHookComponent::FireGrapple(const FVector& Target, const FVector& LocalOffset)
 {
+	// Some sanity checks first thing in the morning:
+	
 	// If already in use, nothing to do
-	if (IsInUse())
+	if (IsInUse() || GetWorld() == nullptr)
 		return;
+
+	// You can crash the app if you don't check if this class is valid
+	if (!IsValid(GrapleHookClass))
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not spawn graple hook actor since it's not a valid subclass. Did you forget to set the class to be spawned?"));
+		return;
+	}
+
+	if (!IsValid(GrapleCableClass))
+	{
+		UE_LOG(LogTemp, Error, TEXT("Can't spawn grapple hook cable since it's not a valid subclass. Did you forget to set the cable class to be spawned?"))
+		return;
+	}
 
 	CurrentState = GrapplingState::Firing;
 
@@ -29,28 +45,62 @@ void UGraplingHookComponent::FireGrapple(const FVector& Target, const FVector& L
 	GrappleDirection.Normalize();
 	FireDirection = GrappleDirection;
 
-	if (GetWorld() == nullptr)
-		return;
-
-	// You can crash the app if you don't check if this class is valid
-	if (!IsValid(GrapleHookClass))
-	{
-		UE_LOG(LogTemp, Error, TEXT("Could not spawn graple hook actor since it's not a valid subclass"));
-		return;
-	}
-
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = GetOwner();
-	AGrapleHook* GrappleHookObject = 
+	FVector StartLocation = GrapplingHookStartLocation(LocalOffset);
+	HookObject =
 		GetWorld()->SpawnActor<AGrapleHook>(
 			GrapleHookClass, 
-			GrapplingHookStartLocation(LocalOffset), 
+			StartLocation,
 			GetOwner()->GetActorRotation(),
 			SpawnParams
 		);
-	GrappleHookObject->SetVelocity(GrappleDirection * HookSpeed);
-	UE_LOG(LogTemp, Warning, TEXT("Spawned"));
+
+	if (HookObject == nullptr)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not spawn hook actor"));
+		CurrentState = GrapplingState::ReadyToFire;
+		return;
+	}
+
+	// Set up hook object: Set velocity and bind relevant events
+	HookObject->SetVelocity(GrappleDirection * HookSpeed);
+	// Use OnHit Event to know when you hit some wall
+	HookObject->OnActorHit.AddDynamic(this, &UGraplingHookComponent::OnHookHit); 
+
+	// Use OnDestroyed to know when to stop pulling to the hook
+	HookObject->OnDestroyed.AddDynamic(this, &UGraplingHookComponent::OnGrappleDestroyed);
+
+	// Now spawn the cable from the start point to the contact point
+	CableObject = GetWorld()->SpawnActor<AGrapleCableActor>(
+		GrapleCableClass, 
+		StartLocation, 
+		GrappleDirection.Rotation(),
+		SpawnParams
+		);
+
+	// If failed to spawn, reset everything
+	if (CableObject == nullptr)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Could not spawn hook cable actor"));
+		GetWorld()->DestroyActor(HookObject);
+		HookObject = nullptr;
+		CurrentState = GrapplingState::ReadyToFire;
+		return;
+	}
+
+	// Now set up end points of cable to corresponding locations
+	FAttachmentTransformRules Rules(EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, EAttachmentRule::KeepWorld, true);
+
+	// Attach to start
+	CableObject->AttachToActor(GetOwner(), Rules);
+
+	// Attach to end
+	CableObject->CableComponent->SetAttachEndTo(HookObject, NAME_None);
+	CableObject->CableComponent->EndLocation = FVector::ZeroVector;
+
+	UE_LOG(LogTemp, Warning, TEXT("Spawned with speed of %f"), HookSpeed);
 }
 
 void UGraplingHookComponent::CancelGrapple()
@@ -78,6 +128,16 @@ FVector UGraplingHookComponent::GetMovementDirection(const FVector& Target, cons
 FVector UGraplingHookComponent::GrapplingHookStartLocation(const FVector& LocalOffset) const
 {
 	return GetOwner()->GetActorTransform().TransformPosition(LocalOffset);
+}
+
+void UGraplingHookComponent::OnHookHit(AActor* SelfActor, AActor* OtherActor, FVector NormalImpulse, const FHitResult& Hit)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Hit something!"));
+}
+
+void UGraplingHookComponent::OnGrappleDestroyed(AActor* DestroyedActor)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Hook destroyed"));
 }
 
 // Called every frame

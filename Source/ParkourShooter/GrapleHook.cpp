@@ -26,6 +26,6 @@ void AGrapleHook::BeginPlay()
 void AGrapleHook::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	ProjectileMovementComponent->SetVelocityInLocalSpace(HookVelocity);
+	ProjectileMovementComponent->Velocity = HookVelocity;
 }
 

@@ -8,6 +8,7 @@
 #include "GrapleCableActor.h"
 #include "GraplingHookComponent.generated.h"
 
+class UCharacterMovementComponent;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PARKOURSHOOTER_API UGraplingHookComponent : public UActorComponent
@@ -42,6 +43,14 @@ public:
 	void CancelGrapple();
 
 protected:
+
+	struct MovementProperties
+	{
+		float GroundFriction;
+		float GravityScale;
+		float AirControl;
+	};
+
 	// Called when the game starts
 	virtual void BeginPlay() override;
 	
@@ -66,18 +75,79 @@ protected:
 	void OnGrappleDestroyed(AActor* DestroyedActor);
 
 	/// <summary>
+	/// Set movement properties of this movement component so they're better fit for pulling to 
+	/// attach point
+	/// </summary>
+	/// <param name="MovementComponent"> Movemenet component to modify </param>
+	void SetMovementProperties(UCharacterMovementComponent* MovementComponent, const MovementProperties& Properties) const;
+	
+	/// <summary>
+	/// Get *relevant* movement properties from movement component
+	/// </summary>
+	/// <returns>Relevant properties of this movement component</returns>
+	MovementProperties GetMovementProperties(UCharacterMovementComponent* MovementComponent) const;
+
+	/// <summary>
+	/// Return a unit vector pointing from the character to the grapple hook head. Returns 0 if no 
+	/// valid HookObject is currently active
+	/// </summary>
+	/// <returns>Unit vector pointing from character to hook. Zero vector if no hook in scene</returns>
+	FVector ToGrappleHook() const;
+
+	/// <summary>
+	/// Checks if too close to hook and should cancel pulling
+	/// </summary>
+	/// <returns> If too close to hook </returns>
+	bool IsTooCloseToHook() const;
+
+	/// <summary>
+	/// Checks if the character is too far from the hook.
+	/// </summary>
+	/// <returns> If too far from hook </returns>
+	bool IsTooFarFromHook() const;
+
+	/// <summary>
+	/// Checks if hook is already passed, like behinde the character
+	/// </summary>
+	/// <returns> If you already passed the hook </returns>
+	bool HookPassed() const;
+
+	/// <summary>
 	/// Direction we're currently traveling to 
 	/// </summary>
 	FVector FireDirection;
 
-	/** How fast will the hook trable to its target */
-	UPROPERTY(EditDefaultsOnly)
+	/** How fast will the hook travel to its target */
+	UPROPERTY(EditAnywhere, Category = "Hook")
 	float HookSpeed = 200;
+
+	/** Initial speed to pull the character towards the hook the first time the hook hits a wall */
+	UPROPERTY(EditAnywhere, Category = "Hook")
+	float PullInitialSpeed = 2000;
+
+	/** Force to apply to character every frame towards the hook */
+	UPROPERTY(EditAnywhere, Category = "Hook")
+	float ContinousPullSpeed = 100000;
+
+	/** Radius around the hook to cancel the pull. If the character is in a sphere of this radius around the hook, cancel attachement */
+	UPROPERTY(EditAnywhere, Category = "Hook")
+	float MinDistanceToPull = 100;
+
+	UPROPERTY(EditAnywhere, Category = "Hook")
+	float MaxHookDistanceFromCharacter = 100000;
+
+	// Direction we started to pull to. We don't care about the Z component,
+	// we only care about the direction in the XY plane.
+	FVector2D InitialHookDirection2D;
 
 	// Currently active hook in scene
 	AGrapleHook* HookObject = nullptr;
 
+	// Currently active cable in scene
 	AGrapleCableActor* CableObject = nullptr;
+
+	// Movement properties before taking the player off the ground with the graple hook
+	MovementProperties PreviousProperties;
 
 public:	
 	// Called every frame
@@ -86,9 +156,9 @@ public:
 protected:
 	GrapplingState CurrentState;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Hook")
-	TSubclassOf<AGrapleHook> GrapleHookClass;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hook")
+	TSubclassOf<AGrapleHook> HookClass;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Hook")
-	TSubclassOf<AGrapleCableActor> GrapleCableClass;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hook")
+	TSubclassOf<AGrapleCableActor> CableClass;
 };

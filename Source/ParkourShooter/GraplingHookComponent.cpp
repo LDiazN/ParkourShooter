@@ -5,6 +5,7 @@
 #include "CableComponent.h"
 #include "ParkourShooterCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "DrawDebugHelpers.h"
 #include "GrapleHook.h"
 
 // Sets default values for this component's properties
@@ -187,7 +188,7 @@ void UGraplingHookComponent::OnHookHit(AActor* SelfActor, AActor* OtherActor, FV
 	// Now we have to change the movement controller so that it's easier to pull the character to the attach point
 	AActor* OwnerActor = GetOwner();
 	AParkourShooterCharacter* OwnerCharacter = Cast<AParkourShooterCharacter>(OwnerActor);
-	
+
 	// Check if Cast was valid
 	if (!IsValid(OwnerCharacter))
 	{
@@ -196,7 +197,7 @@ void UGraplingHookComponent::OnHookHit(AActor* SelfActor, AActor* OtherActor, FV
 	}
 
 	// Now get movement component
-	UCharacterMovementComponent * MovementComp = OwnerCharacter->GetCharacterMovement();
+	UCharacterMovementComponent* MovementComp = OwnerCharacter->GetCharacterMovement();
 	if (MovementComp == nullptr)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Can't get movement component from owning Parkour Shooter Character"));
@@ -207,8 +208,13 @@ void UGraplingHookComponent::OnHookHit(AActor* SelfActor, AActor* OtherActor, FV
 	PreviousProperties = GetMovementProperties(MovementComp);
 	SetMovementProperties(MovementComp, { 0.0f, 0.0f, 0.2f });
 
+	// Clear forces
+	auto Owner = Cast<AParkourShooterCharacter>(GetOwner());
+	if (IsValid(Owner) && FMath::IsNearlyZero(Owner->GetCharacterMovement()->Velocity.Z))
+		Owner->LaunchCharacter(FVector(0, 500, 0), false, true);
+
 	FVector ToHook = ToGrappleHook();
-	MovementComp->Velocity = PullInitialSpeed * ToGrappleHook();
+	MovementComp->Velocity = PullInitialSpeed * ToHook;
 	
 	InitialHookDirection2D = FVector2D(ToHook);
 	InitialHookDirection2D.Normalize();
@@ -302,7 +308,10 @@ void UGraplingHookComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	// Pull to the specified direction
 	UCharacterMovementComponent* MovementComponent = OwnerCharacter->GetCharacterMovement();
 	FVector Direction = ToGrappleHook();
-	MovementComponent->AddForce(Direction*ContinousPullSpeed);
+	// DrawDebugDirectionalArrow(GetWorld(), OwnerCharacter->GetActorLocation(), OwnerCharacter->GetActorLocation() + Direction * 1000, 5, FColor::Red, true, 0.1);
+	// MovementComponent->AddForce(Direction*ContinousPullSpeed);
+	// What if we try a velocity approach?
+	MovementComponent->Velocity = Direction * ContinousPullSpeed * DeltaTime;
 
 }
 

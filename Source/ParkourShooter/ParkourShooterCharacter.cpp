@@ -144,8 +144,13 @@ void AParkourShooterCharacter::BeginPlay()
 	SetMovementState(MovementState::Sprinting);
 
 	// Sliding
-	OriginalFriction = GetCharacterMovement()->GroundFriction;
-	OriginalBrakingDeceleration = GetCharacterMovement()->BrakingDecelerationFalling;
+
+	OriginalProperties = MovementProperties{ 
+			GetCharacterMovement()->GravityScale, 
+			GetCharacterMovement()->AirControl, 
+			GetCharacterMovement()->GroundFriction, 
+			GetCharacterMovement()->BrakingDecelerationWalking 
+	};
 }
 
 void AParkourShooterCharacter::Slide()
@@ -153,17 +158,15 @@ void AParkourShooterCharacter::Slide()
 	// Player requested sliding
 	IsCrouchKeyDown = true;
 
-	if (CurrentMovementState == MovementState::Crouching) return;
+	if (CurrentMovementState == MovementState::Crouching || CurrentMovementState == MovementState::Sliding) return;
 
 	// If we're moving we will slide, otherwise we do a regular crunch
 	if (GetCharacterMovement()->Velocity.IsNearlyZero(0.001))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Should crouch"));
 		SetMovementState(MovementState::Crouching);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Should slide"));
 		SetMovementState(MovementState::Sliding);
 	}
 }
@@ -251,8 +254,7 @@ void AParkourShooterCharacter::UpdateSlide()
 
 void AParkourShooterCharacter::EndSlide()
 {
-	GetCharacterMovement()->GroundFriction = OriginalFriction;
-	GetCharacterMovement()->BrakingDecelerationWalking = OriginalBrakingDeceleration;
+	RestoreMovementProperties();
 
 	EndSlideBP();
 }
@@ -320,6 +322,14 @@ void AParkourShooterCharacter::SetupPlayerInputComponent(class UInputComponent* 
 	PlayerInputComponent->BindAxis("TurnRate", this, &AParkourShooterCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AParkourShooterCharacter::LookUpAtRate);
+}
+
+void AParkourShooterCharacter::RestoreMovementProperties()
+{
+	GetCharacterMovement()->GravityScale = OriginalProperties.GravityScale;
+	GetCharacterMovement()->AirControl = OriginalProperties.AirControl;
+	GetCharacterMovement()->GroundFriction = OriginalProperties.GroundFriction;
+	GetCharacterMovement()->BrakingDecelerationWalking = OriginalProperties.BrakingDeceleration;
 }
 
 void AParkourShooterCharacter::OnFire()
@@ -486,6 +496,7 @@ void AParkourShooterCharacter::MoveForward(float Value)
 		// add movement in that direction
 		AddMovementInput(GetActorForwardVector(), Value);
 	}
+	GrapplingHook->SetVerticalMovement(Value);
 }
 
 void AParkourShooterCharacter::MoveRight(float Value)
@@ -496,6 +507,7 @@ void AParkourShooterCharacter::MoveRight(float Value)
 		// add movement in that direction
 		AddMovementInput(GetActorRightVector(), Value);
 	}
+	GrapplingHook->SetHorizontalMovement(Value);
 }
 
 void AParkourShooterCharacter::TurnAtRate(float Rate)
@@ -527,10 +539,6 @@ bool AParkourShooterCharacter::EnableTouchscreenMovement(class UInputComponent* 
 
 void AParkourShooterCharacter::BeginWallrun()
 {
-	// Save previous value for gravity scale and air control
-	OldAirControl = GetCharacterMovement()->AirControl;
-	OldGravityScale = GetCharacterMovement()->GravityScale;
-
 	GetCharacterMovement()->GravityScale = 0;
 	GetCharacterMovement()->AirControl = 1;
 	GetCharacterMovement()->SetPlaneConstraintNormal(FVector::UpVector);
@@ -623,8 +631,7 @@ void AParkourShooterCharacter::EndWallrun(WallrunEndReason Reason)
 	}
 
 	// Roll back changes we did starting the wallrun
-	GetCharacterMovement()->GravityScale = OldGravityScale;
-	GetCharacterMovement()->AirControl = OldAirControl;
+	RestoreMovementProperties();
 	GetCharacterMovement()->SetPlaneConstraintNormal(FVector::ZeroVector);
 	bIsWallRunning = false;
 	EndCameraTilt();

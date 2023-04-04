@@ -154,7 +154,14 @@ void UGraplingHookComponent::CancelGrapple()
 		return;
 	}
 
-	SetMovementProperties(MovementComp, PreviousProperties);
+
+	OwnerCharacter->RestoreMovementProperties();
+
+	// Launch character to avoid the feeling that the movement 
+	// Is suddenly interrupted
+	OwnerCharacter->LaunchCharacter(MovementComp->Velocity, true, true);
+	HorizontalMovement = 0;
+	VerticalMovement = 0;
 }
 
 // Called when the game starts
@@ -205,7 +212,6 @@ void UGraplingHookComponent::OnHookHit(AActor* SelfActor, AActor* OtherActor, FV
 	}
 
 	// Now we have to set all movement properties to values that are suitable for pulling the character to the attach point
-	PreviousProperties = GetMovementProperties(MovementComp);
 	SetMovementProperties(MovementComp, { 0.0f, 0.0f, 0.2f });
 
 	// Clear forces
@@ -275,6 +281,27 @@ bool UGraplingHookComponent::HookPassed() const
 	return FVector2D::DotProduct(ToHook2D, InitialHookDirection2D) < 0;
 }
 
+void UGraplingHookComponent::UpdateMovement(float NewDirection, float &Axis, float Speed, float DeltaTime, float MaxSpeed) const
+{
+	bool DirectionIsZero = FMath::IsNearlyZero(NewDirection);
+
+	// If no change is requested and axis is already 0, nothing to do 
+	if (DirectionIsZero && FMath::IsNearlyZero(Axis))
+		return;
+
+	// If new direction is zero, but axis is not zero, it means we have to pull it to the opposite side
+	if (DirectionIsZero)
+	{
+		NewDirection = -FMath::Sign(Axis);
+		Speed *= 2;
+	}
+
+	Axis = FMath::Clamp(Axis + NewDirection * Speed * DeltaTime, -MaxSpeed, MaxSpeed);
+
+	// Clamp it to zero if small enough
+	if (FMath::IsNearlyZero(Axis, 0.01f))
+		Axis = 0;
+}
 
 // Called every frame
 void UGraplingHookComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -308,7 +335,16 @@ void UGraplingHookComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	// Pull to the specified direction
 	UCharacterMovementComponent* MovementComponent = OwnerCharacter->GetCharacterMovement();
 	FVector Direction = ToGrappleHook();
-	// DrawDebugDirectionalArrow(GetWorld(), OwnerCharacter->GetActorLocation(), OwnerCharacter->GetActorLocation() + Direction * 1000, 5, FColor::Red, true, 0.1);
+
+	// Change direction a bit depending on if you want to go a bit to the side or a bit up or down
+	UpdateMovement(HorizontalMovement, HorizontalSpeed, ContinousHorizontalSpeed, DeltaTime, MaxHorizontalMovementSpeed);
+	UpdateMovement(VerticalMovement, VerticalSpeed, ContinousVerticalSpeed, DeltaTime, MaxVerticalMovementSpeed);
+
+	Direction += DeltaTime * HorizontalSpeed * OwnerCharacter->GetActorRightVector();
+	Direction += DeltaTime * VerticalSpeed * OwnerCharacter->GetActorUpVector();
+	UE_LOG(LogTemp, Warning, TEXT("Speed is (%f, %f)"), HorizontalSpeed, VerticalSpeed);
+
+	// DrawDebugDirectionalArrow(GetWorld(), OwnerCharacter->GetActorLocation(), OwnerCharacter->GetActorLocation() + OwnerCharacter->GetActorRightVector() * 1000, 5, FColor::Red, true, 0.1);
 	// MovementComponent->AddForce(Direction*ContinousPullSpeed);
 	// What if we try a velocity approach?
 	MovementComponent->Velocity = Direction * ContinousPullSpeed * DeltaTime;

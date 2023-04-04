@@ -42,6 +42,10 @@ public:
 
 	void CancelGrapple();
 
+	void SetHorizontalMovement(float NewMovement) { HorizontalMovement = NewMovement; }
+
+	void SetVerticalMovement(float NewMovement) { VerticalMovement = NewMovement; }
+
 protected:
 
 	struct MovementProperties
@@ -113,6 +117,13 @@ protected:
 	bool HookPassed() const;
 
 	/// <summary>
+	/// Utility function to update movement axis based on a new direction, used to update the horizontal and vertical movement
+	/// scalars when asking to pull the character a bit up or a bit to the side foring a hook pull
+	/// </summary>
+	/// <returns> If you already passed the hook </returns>
+	void UpdateMovement(float NewDirection, float &Axis, float Speed, float DeltaTime, float MaxSpeed) const;
+
+	/// <summary>
 	/// Direction we're currently traveling to 
 	/// </summary>
 	FVector FireDirection;
@@ -136,6 +147,25 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Hook")
 	float MaxHookDistanceFromCharacter = 100000;
 
+	/** Max horizontal speed to add when trying to go a bit to the right  during hook pull*/
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float MaxHorizontalMovementSpeed = 10;
+
+	/** Max vertical speed to add when trying to go a bit up during hook pull*/
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float MaxVerticalMovementSpeed = 10;
+
+	/** Continous horizontal speed when trying to go a bit to the right during hook pull */
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float ContinousHorizontalSpeed = 500;
+
+	/** Continous vertical speed when trying to go a bit up during hook pull */
+	UPROPERTY(EditAnywhere, Category = "Movement")
+	float ContinousVerticalSpeed = 500;
+
+	float VerticalSpeed = 0;
+	float HorizontalSpeed = 0;
+
 	// Direction we started to pull to. We don't care about the Z component,
 	// we only care about the direction in the XY plane.
 	FVector2D InitialHookDirection2D;
@@ -146,8 +176,11 @@ protected:
 	// Currently active cable in scene
 	AGrapleCableActor* CableObject = nullptr;
 
-	// Movement properties before taking the player off the ground with the graple hook
-	MovementProperties PreviousProperties;
+	// Direction beeing requested by user. This is required to provide a bit of manemaneuverability
+	// in mid air since we're not using a force-based approach
+	float HorizontalMovement = 0;
+	float VerticalMovement = 0;
+
 
 public:	
 	// Called every frame

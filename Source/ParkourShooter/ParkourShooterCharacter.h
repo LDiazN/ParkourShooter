@@ -62,10 +62,21 @@ public:
 	AParkourShooterCharacter();
 
 protected:
+
 	virtual void BeginPlay();
 
 	UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float AirControl;
+
+	struct MovementProperties
+	{
+		float GravityScale;
+		float AirControl;
+		float GroundFriction;
+		float BrakingDeceleration;
+	};
+
+	MovementProperties OriginalProperties;
 
 	// -- < Sliding > --------------------------------------------------------------------
 
@@ -110,8 +121,6 @@ protected:
 	float MinBrakingDecelerationOnSlide = 1000;
 	UPROPERTY(EditDefaultsOnly, Category = "Slide")
 	float MinFrictionOnSlide = 1;
-	float OriginalFriction = 8;
-	float OriginalBrakingDeceleration;
 
 	/** Force applied to you the moment you start a slide */
 	UPROPERTY(EditDefaultsOnly, Category = "Slide")
@@ -252,11 +261,6 @@ protected:
 	float ForwardAxis, RightAxis;
 	FVector WallrunDirection;
 
-	// Use this variables to save and restore state we're changing when 
-	// starting a wall run
-	float OldGravityScale;
-	float OldAirControl;
-
 	/**This is the maximum angle between wall and forward vector to accept to start a wallrun*/
 	UPROPERTY(EditDefaultsOnly, Category = "Wallrun")
 	float ToleranceDegreesToStartWallrun = 45;
@@ -336,6 +340,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Gameplay)
 	uint32 bUsingMotionControllers : 1;
 
+	/// <summary>
+	/// This method is used to restore properties like friction and gravity that are changed by actions like grappling hook
+	/// or wallrunning.
+	/// </summary>
+	void RestoreMovementProperties();
 
 protected:
 	

@@ -18,6 +18,8 @@ To be able to vault over a surface, we need to check that:
 
 If we pass all the checks, we store the location used in the last check to start vaulting. For this, I set a progress variable to 0, store a start location (the player's location in that frame), and the target location. In each frame, I add `DeltaSeconds / TimeToVault` to the progress variable. This makes the progress variable go from 0 to 1 in `TimeToVault` seconds. Using the progress variable, I linearly interpolate (`lerp`) the start location to the target location and set the result as the new player location. Once the progress is already 1 or the distance to the target point is low enough, we end vaulting.
 
+For the animation, I created a function called `IsVaulting` marked with `UFUNCTION` in the character's .h file, which checks if the character is currently vaulting. Then, I use this function in the animation blueprint of the skeletal mesh to set a local variable for updating the animation. This local variable is used in the animation graph to determine which pose to use. As I'm not an expert animator, the arm animation simply rotates the arms downwards. The duration of this animation is set to match the duration of the vault action.
+
 ## Hook
 The hook mechanic is relatively simple: it travels for a certain distance, and if it hits something, it pulls the player to the contact surface. The hook consists of a hook head (just a sphere) and a cable (the Unreal Cable Actor). In the Player Character Blueprint, there is a spawn location defined for the hook head to start from. When the player triggers the hook with the right-click, the hook head spawns at this location, and the cable attaches to it and the starting location.
 

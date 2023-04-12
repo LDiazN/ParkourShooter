@@ -5,6 +5,13 @@ Simple FPS game made in **Unreal Engine 4** where I aimed to implement and exper
 
 ## Sliding
 
+Sliding allows the character to reduce the size of its capsule collider (making it harder to hit and able to slide between short ceillings) while also adding a speed boost in a specific direction for a short amount of time, which might be useful to hide behind covers on a frenzy battle. Since the player can slide under surfaces with smaller roofs, crounching is implemented as well to handle situations where the slide finish under a small ceil. 
+
+For sliding, I have a parameter for the sliding max speed, once the player triggers a slide, it sets the velocity of the player to its forward direction at this max speed. I also reset some movement properties, like ground friction and breaking deceleration for walking to 0, so it slides for more time. At this point I also call the `BeginSlideBP` method which is a blueprint implementable method that starts the updating process in blueprints and manage animations. More on that later.
+
+Now that the player enters in sliding mode, a continous force is added each frame. The force of the slide is determined by the steepness of the terrain, meaning that if the player is on a hill, they will slide for a longer period of time than if they were on flat ground. To do this I take the floor normal and use it to compute a vector that points downwards the hill. For this I use a neat vector trick: I take the cross product between the surface normal and the up vector, and since the cross product returns a vector perpendicular to both of its inputs, then this vector will be in the XY plane and the surface plane at the same time. Now, taking the cross product between this new vector and the surface normal again will yield a vector that is perpendicular to the previous one and the normal, and thus pointing downwards or upwards depending on the surface normal. To ensure that it points downwards the hill, we can check if the Z component is positive. If it is, we multiply the resulting direction vector by -1. 
+
+
 ## Vaulting
 The vaulting system helps the player to jump over objects that are too tall to reach by a single jump but not so tall that they are unreachable. When the player is near an edge, they can grab the edge to jump over it.
 

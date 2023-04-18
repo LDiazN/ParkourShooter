@@ -1,11 +1,48 @@
 # ParkourShooter
-Simple FPS game made in **Unreal Engine 4** where I aimed to implement and experiment with advanced mobility mechanics in an FPS. The core movement features include sliding, wall running, a grappling hook, double jump, and vaulting. The code for this project was mainly written in C++, while also using blueprints when more appropriate for the task.
+Simple FPS game made in **Unreal Engine 4** where I aimed to implement and experiment with advanced mobility mechanics in an FPS. The core movement features include sliding, wall running, a grappling hook, double jump, and vaulting. The code for this project was mainly written in C++, while also using blueprints when more appropriate for the task. In this README I will provide a brief explanation of how I implemented those features.
 
 ## Wallrunning
 Wallrunning allows the player to run along vertical surfaces to traverse spaces without floor, avoiding damage, and getting better shot positions. For this implementation I wanted the player to run indefinitely over walls and I tried to avoid solutions that required to mark surfaces as runnable. Altough it's not super hard to implement, it's the hardest mechanic to implement in this project.
 
+Now, to run over a wall, we first need a wall. This means that the wallrunning starts by registering a function `OnWallHit` to the player's capsule `OnComponentHit` event to be triggered when the  capsule hits a wall. Given the `HitResult` of this collision, the function performs a few checks to ensure this is a wall, in particular:
 
+* Checks if the character is already running in a wall
+* If the character is not falling (aka in the ground) 
+* If the wall is runnable, to do this it checks:
+   *   If the surface angle is steep enough.
+   *   If the character is facing in the same direction to the wall
+* The character is moving fast enough in the horizontal plane: Think for example when the character wants to jump over a tall wall to vault, it's hitting a wall and it might be facing the same direction of the wall, but they want to climb the wall, not run over it.
 
+If these conditions are all met, then we can start wallrunning. Since we want to tilt the player a bit depending on the side of the wall to signal them in which wall they're running, we have to calculate which side this might be. To do this, I create an Enum `WallrunSide` with the variants `Left` and `Right`. We can easily check which side we use depending on the dot product between the actor's `RightVector` and the surface normal. If its directions match (dot product > 0) then the surface is in the left side of the character. Otherwise, it's on their right side. 
+
+Now that we have the correct side, we can use it to compute the running direction. When the caracter hits the wall, it can run on each direction of the wall, but we have to choose one and we prefer it to be the same direction the player is looking at. We calculate this direction using the side:
+
+* If side is left, then the running direction is the cross product between the surface normal and (0,0,1)
+* If the side is right, then the running direction is the cross product between the surface normal and (0,0,-1)
+
+You can double check the validity of this method using the left hand rule. Also note that since we're using a vector in the Z axis in the cross, the resulting vector will be a direction in the horizontal plane.
+
+Now we will store this direction vector and side enum to use them during the update function. 
+
+Before starting the update function calls, I set some movement properties so that the physics play nice with our wallrunning character:
+
+* I set the gravity scale to 0
+* Air control to 1
+* Plane constraint normal to (0,0,1)
+
+Now we use a timeline for the camera tilting and a timer for the update function. The camera tilting will just rotate the character and their camera to to a side depending on the wallrun side (`Left` or `Right`).
+
+The update function for wallrunning has three stages:
+
+1. Check if we should still be in wallrunning state
+    * The player is holding the required keys down.
+    * The player runs fast enough (to account for moments where you run into an obstacle in the wall)
+    * The wall is still there, we can check this by tracing a line to the side specified by the side variable
+3. Compute the new direction we should move to
+    * Using the line trace result in the previous step, we use the normal to compute the new direction using the same method we used before and also the new side. If the new side is different than the previous side, then we fall off the wall. this is a situation where we're now touching a wall that is not the previous wall.
+5. Update character's velocity: we simply set the velocity to the specified direction and set the Z component to 0 to ensure that the character is not falling while they run.
+
+Now, for the end of wallrun function, I simply restore the physics properties in the `CharacterMovementComponent`, I clear the timer that calls the wallrun update function, and end the camera tilting. I also modify the jump function to launch the character away of the wall after ending the wallrun. 
 
 ## Sliding
 

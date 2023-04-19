@@ -39,7 +39,6 @@ void UGraplingHookComponent::FireGrapple(const FVector& Target, const FVector& L
 		UE_LOG(LogTemp, Error, TEXT("Can't spawn grapple hook cable since it's not a valid subclass. Did you forget to set the cable class to be spawned?"))
 		return;
 	}
-
 	CurrentState = GrapplingState::Firing;
 
 	// We want to get the direction we will be moving on, we get that by substracting target
@@ -277,7 +276,6 @@ bool UGraplingHookComponent::HookPassed() const
 
 	FVector2D ToHook2D(ToHook);
 
-
 	return FVector2D::DotProduct(ToHook2D, InitialHookDirection2D) < 0;
 }
 
@@ -347,6 +345,7 @@ void UGraplingHookComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	// DrawDebugDirectionalArrow(GetWorld(), OwnerCharacter->GetActorLocation(), OwnerCharacter->GetActorLocation() + OwnerCharacter->GetActorRightVector() * 1000, 5, FColor::Red, true, 0.1);
 	// MovementComponent->AddForce(Direction*ContinousPullSpeed);
 	// What if we try a velocity approach?
+	Direction.Normalize();
 	MovementComponent->Velocity = Direction * ContinousPullSpeed * DeltaTime;
 
 }

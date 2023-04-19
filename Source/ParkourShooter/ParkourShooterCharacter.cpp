@@ -232,7 +232,6 @@ void AParkourShooterCharacter::UpdateSlide()
 	// Direction of floor downwards if floor has some slope
 	FVector Influence = ComputeFloorInfluence(FloorNormal);
 	GetCharacterMovement()->AddForce(Influence);
-	UE_LOG(LogTemp, Warning, TEXT("Updating slide"));
 
 	// Now clamp velocity 
 	FVector Velocity = GetCharacterMovement()->Velocity;
@@ -869,7 +868,7 @@ void AParkourShooterCharacter::SetHorizontalVelocity(FVector2D NewVelocity)
 
 void AParkourShooterCharacter::ClampHorizontalVelocity()
 {
-	if (GetCharacterMovement()->IsFalling())
+	if (GetCharacterMovement()->IsFalling() && !GrapplingHook->IsAttached())
 	{
 		FVector2D HorizontalVelocity = GetHorizontalVelocity();
 		float MaxSpeed = GetCharacterMovement()->GetMaxSpeed();
@@ -996,7 +995,6 @@ void AParkourShooterCharacter::OnMovementStateChanged(MovementState OldState, Mo
 		EndCrouch();
 		break;
 	case Sliding:
-		UE_LOG(LogTemp, Warning, TEXT("Ending Slide"));
 		EndSlide();
 		break;
 	default:
@@ -1016,8 +1014,10 @@ FVector AParkourShooterCharacter::ComputeFloorInfluence(FVector FloorNormal) con
 
 	// Now we will scale this direction to how steep this floor is
 	float Projection = FMath::Clamp(1.f -  FVector::DotProduct(FloorNormal, FVector::UpVector), 0.f, 1.f);
+	FVector ResultingInfluence = Projection * FloorInfluenceForce * SurfaceDownwardsDirection;
+	UE_LOG(LogTemp, Warning, TEXT("Floor influence is: (%f, %f, %f)"),ResultingInfluence.X, ResultingInfluence.Y, ResultingInfluence.Z);
 
-	return Projection * FloorInfluenceForce * SurfaceDownwardsDirection;
+	return ResultingInfluence;
 }
 
 bool AParkourShooterCharacter::CanSprint() const

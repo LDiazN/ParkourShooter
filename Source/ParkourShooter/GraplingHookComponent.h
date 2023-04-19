@@ -33,6 +33,11 @@ public:
 	GrapplingState GetState() const { return CurrentState; }
 
 	/// <summary>
+	/// If the hook is attached to something
+	/// </summary>
+	bool IsAttached() const { return CurrentState == GrapplingState::Attached; }
+
+	/// <summary>
 	/// Checks if the grappling hook is currently being used
 	/// </summary>
 	/// <returns> true if current state is firing or attached </returns>

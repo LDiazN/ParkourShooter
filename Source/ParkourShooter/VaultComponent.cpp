@@ -53,10 +53,10 @@ bool UVaultComponent::CanVault(FVector& OutFinalPosition) const
 	FVector Start =
 		ShooterCharacter->GetActorLocation() +
 		ShooterCharacter->GetActorForwardVector() * DistanceFromPlayer + // How much to the front
-		FVector::UpVector * Capsule->GetScaledCapsuleHalfHeight();       // How much Upwards
+		ShooterCharacter->GetActorUpVector() * Capsule->GetScaledCapsuleHalfHeight();       // How much Upwards
 		 
 	// End is in the ground just in front of you
-	FVector End = Start - FVector::UpVector * Capsule->GetScaledCapsuleHalfHeight() * 2;
+	FVector End = Start - ShooterCharacter->GetActorUpVector() * Capsule->GetScaledCapsuleHalfHeight() * 2;
 
 
 	FHitResult Hit;

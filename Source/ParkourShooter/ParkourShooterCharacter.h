@@ -114,7 +114,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Slide")
 	float CrouchCameraZOffset = 25;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Slide")
+	UPROPERTY(EditAnywhere, Category = "Slide")
 	float FloorInfluenceForce = 500000;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Slide")

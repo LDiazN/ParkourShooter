@@ -17,6 +17,10 @@ To perform wallrunning, we first need a wall. Therefore, wallrunning begins by r
    *   If the character is not facing away of the wall.
 * The character is moving fast enough in the horizontal plane: Think for example when the character wants to jump over a tall wall to vault, it's hitting a wall and it might be facing the same direction of the wall, but they want to climb the wall, not run over it.
 
+<p align="center">
+   <img src="https://user-images.githubusercontent.com/41093870/232954890-f8cff019-bf9a-473a-8139-13ea344f5376.gif" alt="Wallrunning on walls not so vertical" style="center"/>
+</p>
+
 If all of these conditions are met, wallrunning can begin. Since we want to tilt the player slightly depending on the side of the wall they are running on to signal which wall they are on, we need to calculate which side this might be. To achieve this, I create an enum called `WallrunSide` with the variants `Left` and `Right`. We can easily determine which side to use based on the dot product between the actor's `RightVector` and the surface normal. If their directions match (dot product > 0), then the surface is on the left side of the character. Otherwise, it is on their right side.
 
 Now that we have determined the correct side, we can use it to compute the running direction. When the character hits the wall, they can run in either direction along the wall. However, we prefer the direction to be the same as the direction the player is looking. We calculate this direction using the side.
@@ -42,15 +46,25 @@ The update function for wallrunning consists of three stages:
     * The player is holding the required keys down.
     * The player runs fast enough (to account for moments where you run into an obstacle in the wall)
     * The wall is still there, we can check this by tracing a line to the side specified by the side variable
-3. Compute the new direction we should move to
+2. Compute the new direction we should move to
     * Using the line trace result from the previous step, we use the normal to compute the new direction using the same method as before, along with the new side. If the new side is different from the previous side, then the character falls off the wall. This occurs when they are now touching a wall that is different from the previous wall.
-5. Update character's velocity: we simply set the velocity to the new direction and set the Z component to 0 to ensure that the character is not falling while they run.
+3. Update character's velocity: we simply set the velocity to the new direction and set the Z component to 0 to ensure that the character is not falling while they run.
+
+Using the surface normal to compute the next direction makes this technique robust for curved surfaces:
+
+<p align="center">
+   <img src="https://user-images.githubusercontent.com/41093870/232953336-8cc1e88d-3de8-426e-961d-b224570dd8c7.gif" alt="Simple Wallrun" style="center"/>
+</p>
+
 
 For the end of wallrun function, I simply restore the physics properties in the `CharacterMovementComponent`. I clear the timer that calls the wallrun update function and end the camera tilting. Additionally, I modify the jump function to launch the character away from the wall after ending the wallrun.
 
-## Sliding
+<p align="center">
+   <img src="https://user-images.githubusercontent.com/41093870/232955529-d812ae69-ce7a-40ba-9589-e5b1f4314b6c.gif" alt="Simple Wallrun" style="center"/>
+</p>
 
-Here's the corrected paragraph:
+
+## Sliding
 
 Sliding allows the character to reduce the size of its capsule collider, making it harder to hit and enabling it to slide between low ceilings. It also provides a speed boost in a specific direction for a short period of time, which can be useful for taking cover during a frenzied battle. Crouching is also implemented to handle situations where the slide finishes under a low ceiling surface. 
 

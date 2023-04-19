@@ -66,11 +66,23 @@ For the end of wallrun function, I simply restore the physics properties in the 
 
 ## Sliding
 
+<p align="center">
+   <img src="https://user-images.githubusercontent.com/41093870/233134924-81a34daa-43a5-4fa0-93a2-ec5300a1f6b0.gif" alt="Sliding down a hill under a low roof" style="center"/>
+</p>
+
 Sliding allows the character to reduce the size of its capsule collider, making it harder to hit and enabling it to slide between low ceilings. It also provides a speed boost in a specific direction for a short period of time, which can be useful for taking cover during a frenzied battle. Crouching is also implemented to handle situations where the slide finishes under a low ceiling surface. 
 
 To enable sliding, I have set a parameter for the maximum sliding speed. When the player triggers a slide, the velocity of the player is set to its forward direction at this maximum speed. Additionally, I reset certain movement properties such as ground friction and breaking deceleration for walking to 0, so that the slide lasts for a longer time. At this point, I also call the `BeginSlideBP` method, which is a blueprint implementable method that starts the updating process in blueprints and manages animations. I will elaborate on this later.
 
 Once the player enters the sliding mode, a continuous force is added each frame. The force of the slide is determined by the steepness of the terrain, which means that the player will slide for a longer period of time if they are on a hill, as compared to being on flat ground. To achieve this, I take the floor normal and use it to compute a vector that points downwards the hill. I use a vector trick to achieve this, where I take the cross product between the surface normal and the up vector. Since the cross product returns a vector perpendicular to both its inputs, this vector will be in the XY plane and the surface plane simultaneously. Then, I take the cross product between this new vector and the surface normal again, which yields a vector that is perpendicular to the previous one and the normal, and thus pointing downwards. I use this vector as the direction to add the continuous force, and it is scaled down by the steepness of the floor. The steepness factor is computed as 1 - the dot product between the surface down direction we just computed and the up vector (0,0,1). In each frame, I use `AddForce` with this non-normal vector as the direction scaled with a `MaxForce` value. Note that since the force might have magnitude 0 when the floor is horizontal, no force is added in such cases, and only the initial pull keeps the player moving.
+
+![SlidingUphills]()
+
+
+
+| Downhills Example | Uphills Example |
+|-------------------|-----------------------|
+| ![Sliding downhills](https://user-images.githubusercontent.com/41093870/233137668-694ad3ee-64fc-4a99-b273-0d0808770a47.gif) | ![Sliding Uphills](https://user-images.githubusercontent.com/41093870/233138035-f3169166-ea92-4660-bb0c-442378cab7f5.gif) |
 
 The update logic is now handled in the blueprint layer, where I implement the BeginSlideBP and EndSlideBP events that were mentioned earlier. These nodes start and end a timeline node that calls the `UpdateSlide` function in multiple frames and stops it when necessary. Additionally, I have added another timeline node to add camera tilting during a slide. This effect gives the impression that the player is sliding on their side.
 

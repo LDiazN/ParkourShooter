@@ -76,13 +76,15 @@ To enable sliding, I have set a parameter for the maximum sliding speed. When th
 
 Once the player enters the sliding mode, a continuous force is added each frame. The force of the slide is determined by the steepness of the terrain, which means that the player will slide for a longer period of time if they are on a hill, as compared to being on flat ground. To achieve this, I take the floor normal and use it to compute a vector that points downwards the hill. I use a vector trick to achieve this, where I take the cross product between the surface normal and the up vector. Since the cross product returns a vector perpendicular to both its inputs, this vector will be in the XY plane and the surface plane simultaneously. Then, I take the cross product between this new vector and the surface normal again, which yields a vector that is perpendicular to the previous one and the normal, and thus pointing downwards. I use this vector as the direction to add the continuous force, and it is scaled down by the steepness of the floor. The steepness factor is computed as 1 - the dot product between the surface down direction we just computed and the up vector (0,0,1). In each frame, I use `AddForce` with this non-normal vector as the direction scaled with a `MaxForce` value. Note that since the force might have magnitude 0 when the floor is horizontal, no force is added in such cases, and only the initial pull keeps the player moving.
 
-![SlidingUphills]()
-
-
-
 | Downhills Example | Uphills Example |
 |-------------------|-----------------------|
 | ![Sliding downhills](https://user-images.githubusercontent.com/41093870/233137668-694ad3ee-64fc-4a99-b273-0d0808770a47.gif) | ![Sliding Uphills](https://user-images.githubusercontent.com/41093870/233138035-f3169166-ea92-4660-bb0c-442378cab7f5.gif) |
+
+Also, note that since there is a force pulling the player down the hill, horizontally sliding on a hill will result in the player following a curved trajectory.
+
+<p align="center">
+   <img src="https://user-images.githubusercontent.com/41093870/233138988-8d259aea-754b-438a-9eda-5bb6fd7eabec.gif" alt="Horizontal down hills slide" style="center"/>
+</p>
 
 The update logic is now handled in the blueprint layer, where I implement the BeginSlideBP and EndSlideBP events that were mentioned earlier. These nodes start and end a timeline node that calls the `UpdateSlide` function in multiple frames and stops it when necessary. Additionally, I have added another timeline node to add camera tilting during a slide. This effect gives the impression that the player is sliding on their side.
 

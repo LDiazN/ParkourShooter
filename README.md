@@ -1,5 +1,5 @@
 # ParkourShooter
-Simple FPS game made in **Unreal Engine 4** where I aimed to implement and experiment with advanced mobility mechanics in an FPS. The core movement features include sliding, wall running, a grappling hook, double jump, and vaulting. The code for this project was mainly written in C++, while also using blueprints when more appropriate for the task. In this README I will provide a brief explanation of how I implemented those features.
+Simple FPS game made in **Unreal Engine 4** starting from the FPS template where I aimed to implement and experiment with advanced mobility mechanics in an FPS. The core movement features include sliding, wall running, a grappling hook, double jump, and vaulting. The code for this project was mainly written in C++, while also using blueprints when more appropriate for the task. In this README I will provide a brief explanation of how I implemented those features.
 
 ## Wallrunning
 <p align="center">

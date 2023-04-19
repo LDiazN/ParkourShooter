@@ -2,6 +2,10 @@
 Simple FPS game made in **Unreal Engine 4** where I aimed to implement and experiment with advanced mobility mechanics in an FPS. The core movement features include sliding, wall running, a grappling hook, double jump, and vaulting. The code for this project was mainly written in C++, while also using blueprints when more appropriate for the task. In this README I will provide a brief explanation of how I implemented those features.
 
 ## Wallrunning
+<p align="center">
+   <img src="https://user-images.githubusercontent.com/41093870/232950405-3993f0dc-d1e1-42af-8ada-13a95ed9f787.gif" alt="Wallrunning on parallel walls" style="center"/>
+</p>
+
 Wallrunning allows the player to run along vertical surfaces to traverse spaces without a floor, avoid damage, and obtain better shot positions. For this implementation, I wanted the player to run indefinitely over walls, and I tried to avoid solutions that required marking surfaces as runnable. Although it is not extremely difficult to implement, it is the most challenging mechanic to implement in this project.
 
 To perform wallrunning, we first need a wall. Therefore, wallrunning begins by registering a function called `OnWallHit` to the player's capsule `OnComponentHit` event, which is triggered when the capsule hits something. Using the `HitResult` of this collision, the function performs several checks to ensure that the collision is with a wall. In particular:

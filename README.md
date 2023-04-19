@@ -80,6 +80,11 @@ In the same `UpdateSlide` function we check if we should stop sliding, and if we
 * If we can, we switch to the regular running state. 
 
 ## Vaulting
+
+<p align="center">
+   <img src="https://user-images.githubusercontent.com/41093870/232957109-c847681d-2ebc-4cf8-af7e-61f535ce6217.gif" alt="Vaulting example" style="center"/>
+</p>
+
 The vaulting system helps the player to jump over objects that are too tall to reach by a single jump but not so tall that they are unreachable. When the player is near an edge, they can grab the edge to jump over it.
 
 To ensure that the player can climb over objects of a reasonable height, I cast a ray starting slightly in front of the player at the height of their "forehead" and ending at their "feet". The height is calculated as the player's location height + half the height of the player capsule, and the "feet" position is calculated as the starting location - 2 * the capsule half height. If the ray doesn't hit anything, then the player cannot vault. Otherwise, we check if the hit position is "vaultable" and if we can or want to actually vault there.
@@ -95,9 +100,18 @@ If we pass all the checks, we store the location used in the last check to start
 For the animation, I created a function called `IsVaulting` marked with `UFUNCTION` in the character's .h file, which checks if the character is currently vaulting. Then, I use this function in the animation blueprint of the skeletal mesh to set a local variable for updating the animation. This local variable is used in the animation graph to determine which pose to use. As I'm not an expert animator, the arm animation simply rotates the arms downwards. The duration of this animation is set to match the duration of the vault action.
 
 ## Hook
+
+<p align="center">
+   <img src="https://user-images.githubusercontent.com/41093870/232956161-dab23707-360d-4e99-af59-3774c7b11476.gif" alt="Hook usage example" style="center"/>
+</p>
+
 The hook mechanic is relatively simple: it travels for a certain distance, and if it hits something, it pulls the player to the contact surface. The hook consists of a hook head (just a sphere) and a cable (the Unreal Cable Actor). In the Player Character Blueprint, there is a spawn location defined for the hook head to start from. When the player triggers the hook with the right-click, the hook head spawns at this location, and the cable attaches to it and the starting location.
 
 Next, we compute the travel direction, which is the direction from the start location near the player to a target location. We determine the target location by performing a Line Trace from the player's location to the camera's forward direction, up to a considerable distance. If the Line Trace hits something, the target location is the impact point; otherwise, it's the Line Trace endpoint. The hook head travels continuously in that direction until it hits something. If it doesn't hit anything, the shot is canceled. If it does, the hook head stops moving, and we start pulling the player.
+
+<p align="center">
+   <img src="https://user-images.githubusercontent.com/41093870/232956642-fa16a30e-1ed8-4178-8285-d2e57a49f7de.gif" alt="Hook missing example" style="center"/>
+</p>
 
 Initially, I tried a force-based approach, where a force was applied each frame to the player towards the hook head location. However, this led to somewhat unpredictable behavior, making it challenging to find the ideal force for the desired velocity, and the movement was awkward. Thus, I changed my approach to set the character's velocity instead. This approach was much easier to tune and followed the hook line more accurately. I also added the possibility to add some velocity to the sides or up and down, to have a bit more control. I accomplished this by storing a speed for the character's right vector and another for the up vector. When input is added in some axis, it increases in that axis, and when there is no input, it decreases.
 
